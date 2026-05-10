@@ -28,11 +28,11 @@
               position="0 0.01 0"></a-entity>
 
     <!-- Edge strips: cyan glow at Street boundaries (x = ±50) -->
-    <a-entity geometry="primitive: plane; width: 0.3; height: 2000"
+    <a-entity geometry="primitive: plane; width: 0.6; height: 2000"
               material="color: #00ffff; emissive: #00ffff; emissiveIntensity: 1.5"
               rotation="-90 0 0"
               position="-50 0.01 0"></a-entity>
-    <a-entity geometry="primitive: plane; width: 0.3; height: 2000"
+    <a-entity geometry="primitive: plane; width: 0.6; height: 2000"
               material="color: #00ffff; emissive: #00ffff; emissiveIntensity: 1.5"
               rotation="-90 0 0"
               position="50 0.01 0"></a-entity>
@@ -42,14 +42,14 @@
     <a-entity id="black-sun"
               geometry="primitive: box; width: 30; height: 30; depth: 30"
               material="color: #000000; metalness: 0; roughness: 1"
-              position="25 15 0">
+              position="80 15 -50">
       <a-entity geometry="primitive: box; width: 30.05; height: 30.05; depth: 30.05"
-                material="color: #1a0033; emissive: #2a0044; emissiveIntensity: 0.3; wireframe: true"></a-entity>
+                material="color: #1a0033; emissive: #4a0099; emissiveIntensity: 0.8; wireframe: true"></a-entity>
     </a-entity>
 
     <!-- Camera rig at avatar height. Spawn 50m down the Street, facing the Black Sun. -->
     <a-entity id="rig" position="0 1.7 50">
-      <a-camera wasd-controls="acceleration: 30" look-controls="pointerLockEnabled: false"></a-camera>
+      <a-camera wasd-controls="acceleration: 30" look-controls="pointerLockEnabled: false; reverseMouseDrag: true"></a-camera>
     </a-entity>
 
     <!-- Minimal ambient so emissives have a baseline to read against -->
