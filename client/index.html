@@ -8,51 +8,119 @@
   <style>
     body { margin: 0; background: #000; overflow: hidden; }
   </style>
+  <script>
+    // Smooth horizon gradient. Dim, desaturated, no hard band.
+    AFRAME.registerComponent('gradient-sky', {
+      schema: {
+        horizon: { type: 'color',  default: '#16203a' },
+        mid:     { type: 'color',  default: '#080c18' },
+        zenith:  { type: 'color',  default: '#010103' }
+      },
+      init: function () {
+        var d = this.data;
+        var mat = new THREE.ShaderMaterial({
+          side: THREE.BackSide, depthWrite: false,
+          uniforms: {
+            horizon: { value: new THREE.Color(d.horizon) },
+            mid:     { value: new THREE.Color(d.mid) },
+            zenith:  { value: new THREE.Color(d.zenith) }
+          },
+          vertexShader:
+            'varying vec3 vDir; void main(){ vDir = normalize(position);' +
+            'gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+          fragmentShader:
+            'varying vec3 vDir; uniform vec3 horizon; uniform vec3 mid; uniform vec3 zenith;' +
+            'void main(){' +
+            ' float h = clamp(vDir.y, 0.0, 1.0);' +
+            ' vec3 lower = mix(horizon, mid, smoothstep(0.0, 0.28, h));' +
+            ' vec3 col   = mix(lower, zenith, smoothstep(0.18, 0.85, h));' +
+            ' gl_FragColor = vec4(col, 1.0); }'
+        });
+        var mesh = new THREE.Mesh(new THREE.SphereGeometry(6000, 48, 24), mat);
+        mesh.frustumCulled = false;
+        this.el.setObject3D('mesh', mesh);
+      }
+    });
+
+    // Broken centreline. Canvas dash texture, mipmapped so it stays clean at distance.
+    AFRAME.registerComponent('dashed-line', {
+      schema: {
+        color:  { type: 'color',  default: '#ff00ff' },
+        repeat: { type: 'number', default: 600 }
+      },
+      init: function () {
+        var c = document.createElement('canvas');
+        c.width = 16; c.height = 128;
+        var ctx = c.getContext('2d');
+        ctx.clearRect(0, 0, 16, 128);
+        ctx.fillStyle = this.data.color;
+        ctx.fillRect(0, 0, 16, 64);
+        var tex = new THREE.CanvasTexture(c);
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(1, this.data.repeat);
+        tex.generateMipmaps = true;
+        tex.minFilter = THREE.LinearMipmapLinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        tex.anisotropy = 8;
+        var self = this;
+        var apply = function (m) {
+          m.material = new THREE.MeshBasicMaterial({
+            map: tex, transparent: true,
+            color: new THREE.Color(self.data.color)
+          });
+        };
+        var mesh = this.el.getObject3D('mesh');
+        if (mesh) apply(mesh);
+        else this.el.addEventListener('object3dset', function (e) {
+          if (e.detail.type === 'mesh') apply(self.el.getObject3D('mesh'));
+        });
+      }
+    });
+  </script>
 </head>
 <body>
   <a-scene background="color: #000" renderer="antialias: true; colorManagement: true; physicallyCorrectLights: true">
 
-    <!-- THE STREET
-         100m wide along X, extends 2000m along Z. Lies in the XZ plane (rotated -90° on X).
-         Coordinate system: decisions/0001. Origin (0,0,0) = Black Sun. -->
+    <!-- Horizon gradient. Deliberate deviation from pure-black skybox: gives the void its silhouette. -->
+    <a-entity gradient-sky="horizon: #243766; mid: #0d1428; zenith: #020205"></a-entity>
+
+    <!-- THE STREET. 100m wide along X, runs 12000m along Z. -->
     <a-entity id="street"
-              geometry="primitive: plane; width: 100; height: 2000"
+              geometry="primitive: plane; width: 100; height: 12000"
               material="color: #0a0a0a; emissive: #0a0a0a; emissiveIntensity: 0.4"
               rotation="-90 0 0"
               position="0 0 0"></a-entity>
 
-    <!-- Center median: magenta neon strip down the centerline -->
-    <a-entity geometry="primitive: plane; width: 0.5; height: 2000"
-              material="color: #ff00ff; emissive: #ff00ff; emissiveIntensity: 1.5"
+    <!-- Center median: broken magenta line, mipmapped so it holds at distance. -->
+    <a-entity geometry="primitive: plane; width: 0.4; height: 12000"
               rotation="-90 0 0"
-              position="0 0.01 0"></a-entity>
+              position="0 0.05 0"
+              dashed-line="color: #ff00ff; repeat: 600"></a-entity>
 
-    <!-- Edge strips: cyan glow at Street boundaries (x = ±50) -->
-    <a-entity geometry="primitive: plane; width: 0.6; height: 2000"
-              material="color: #00ffff; emissive: #00ffff; emissiveIntensity: 1.5"
+    <!-- Edge strips: cyan glow at boundaries. Wider (1.2m) so they don't shatter at grazing angles. -->
+    <a-entity geometry="primitive: plane; width: 1.2; height: 12000"
+              material="color: #00ffff; emissive: #00ffff; emissiveIntensity: 1.5; shader: flat"
               rotation="-90 0 0"
-              position="-50 0.01 0"></a-entity>
-    <a-entity geometry="primitive: plane; width: 0.6; height: 2000"
-              material="color: #00ffff; emissive: #00ffff; emissiveIntensity: 1.5"
+              position="-50 0.05 0"></a-entity>
+    <a-entity geometry="primitive: plane; width: 1.2; height: 12000"
+              material="color: #00ffff; emissive: #00ffff; emissiveIntensity: 1.5; shader: flat"
               rotation="-90 0 0"
-              position="50 0.01 0"></a-entity>
+              position="50 0.05 0"></a-entity>
 
     <!-- THE BLACK SUN
-         Locked. Unexplained. East side parcel so the Street stays walkable past it. -->
-    <a-entity id="black-sun"
-              geometry="primitive: box; width: 30; height: 30; depth: 30"
-              material="color: #000000; metalness: 0; roughness: 1"
-              position="80 15 -50">
-      <a-entity geometry="primitive: box; width: 30.05; height: 30.05; depth: 30.05"
-                material="color: #1a0033; emissive: #4a0099; emissiveIntensity: 0.8; wireframe: true"></a-entity>
+         Locked. Unexplained. Unreachable by design. decisions/0001.
+         Pure black monolith, sunk into the ground so it reads as planted, not balanced. -->
+    <a-entity id="black-sun" position="0 0 -1150">
+      <!-- 340w x 520h x 260d. Base sunk 8m below grade: box centre at (520/2) - 8 = 252. -->
+      <a-box width="340" height="520" depth="260" position="0 252 0"
+             material="shader: flat; color: #000000"></a-box>
     </a-entity>
 
-    <!-- Camera rig at avatar height. Spawn 50m down the Street, facing the Black Sun. -->
+    <!-- Camera rig at avatar height, facing down the Street toward the Black Sun. -->
     <a-entity id="rig" position="0 1.7 50">
       <a-camera wasd-controls="acceleration: 30" look-controls="pointerLockEnabled: false; reverseMouseDrag: true"></a-camera>
     </a-entity>
 
-    <!-- Minimal ambient so emissives have a baseline to read against -->
     <a-light type="ambient" color="#0a0a0a" intensity="0.2"></a-light>
 
   </a-scene>
